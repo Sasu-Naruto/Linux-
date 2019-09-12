@@ -1,0 +1,88 @@
+#include<stdio.h>
+#include<string.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<sys/mman.h>
+#include<sys/stat.h>
+#include<stdlib.h>
+int main(int argc,char*argv[])
+{
+	if(argc!=2)
+	{
+		printf("./a.out filename\n");
+		return -1;
+	}
+	//打開源文件
+	int fd = open(argv[1],O_RDWR);
+	if(fd<0)
+	{
+		perror("open");
+		exit(1);
+	}
+	//計算要拷貝文件的大小
+	int len = lseek(fd,0,SEEK_END); 
+	//struct stat state;
+	//stat("");
+        printf("length of file is :%d\n",len);	
+	//打開目標文件
+	int fd_cp = open("proceed_cp.txt",O_RDWR|O_CREAT,0666);
+	//擴展創建的文件大小
+	ftruncate(fd_cp,len);
+	char*ptr_r = mmap(NULL,len,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);  //讀取文件內容
+	if(ptr_r == MAP_FAILED)
+	{
+		printf("mmap error\n");
+		return -1;
+	}
+	char*ptr_w = mmap(NULL,len,PROT_READ|PROT_WRITE,MAP_SHARED,fd_cp,0);  //複製文件內容
+	if(ptr_w == MAP_FAILED)
+	{
+		printf("mmap error\n");
+		return -1;
+	}
+	int n = 5;
+	for(int i = 0;i < n;i++)
+	{
+		pid_t pid = fork();        //循環產生n個進程
+		if(pid == 0)
+		{
+			break;
+		}
+		else if(pid > 0)
+		{
+			if(i = 1)
+			{
+				memcpy(ptr_w,ptr_r,len/5);
+				printf("part1 copy over!\n");
+			}
+			if(i = 2)
+			{
+				memcpy(ptr_w+len/5,ptr_r+len/5,len/5);
+				printf("part2 copy over!\n");
+			}
+			if(i = 3)
+			{
+				memcpy(ptr_w+2*len/5,ptr_r+2*len/5,len/5);
+				printf("part3 copy over!\n");
+			}
+			if(i = 4)
+			{
+				memcpy(ptr_w+3*len/5,ptr_r+3*len/5,len/5);
+				printf("part4 copy over!\n");
+			}
+			if(i = 5)
+			{
+				memcpy(ptr_w+4*len/5,ptr_r+4*len/5,len-4*len/5);
+				printf("part5 copy over!\n");
+			}
+		}
+	}
+	close(fd);
+	close(fd_cp);
+	munmap(ptr_w,len);
+	munmap(ptr_r,len);
+	return 0;
+}
+
