@@ -1,0 +1,26 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/time.h>
+#include<unistd.h>
+unsigned int myalarm(unsigned int second)
+{
+	struct itimerval myit = {{0,0},{0,0}},oldit; //初始化該結構體
+	myit.it_value.tv_sec = second;
+	setitimer(ITIMER_REAL,&myit,&oldit);
+	printf("rest time = %d.%d\n",oldit.it_value.tv_sec,oldit.it_value.tv_usec);
+	return oldit.it_value.tv_sec;
+}
+int main()
+{
+	int ret = myalarm(7);
+//	printf("rest = %d\n",ret);
+	sleep(2);
+	ret = myalarm(3);
+//	printf("rest = %d\n",ret);
+	while(1)
+	{
+		printf("hello\n");
+		sleep(1);
+	}
+	return 0;
+}
