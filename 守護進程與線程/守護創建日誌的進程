@@ -1,0 +1,61 @@
+#include<stdio.h>
+#include<sys/wait.h>
+#include<sys/stat.h>
+#include<sys/time.h>
+#include<sys/types.h>
+#include<signal.h>
+#include<stdlib.h>
+#include<time.h>
+#include<string.h>
+#include<unistd.h>
+#include<fcntl.h>
+
+
+#define _FIFE_FORMAT_ "%s/%s.%d年%d月"
+void touchlog(int signum)
+{
+	time_t timep;
+	struct tm *p;
+	time(&timep); //返回1970至現在的秒數
+	p = gmtime(&timep);//將日曆時間轉換爲標準時間
+	//創建工作日誌
+	char filename[256] = {0};
+	sprintf(filename,_FIFE_FORMAT_,"/home/naruto/log",__FUNCTION__,1900+p->tm_year,1+p->tm_mon);
+	//最好使用getenv獲得家目錄路徑
+	int fd = open(filename,O_RDWR|O_CREAT,0666);
+	char buf[2014] = {0};
+	char time[128] = {0};
+	sprintf(time,"%d月%d日 %d:%d:%d",1+p->tm_mon,p->tm_mday,8+p->tm_hour,p->tm_min,p->tm_sec);
+	sprintf(buf,"%s %s[%d]:in progress",time,__FUNCTION__,getpid());
+	write(fd,buf,strlen(buf));
+	close(fd);
+}
+int main()
+{
+	pid_t pid = fork();
+	if(pid > 0)
+	{
+		exit(1);
+	}
+	setsid();
+	//更改目錄和權限
+	umask(0);
+	chdir("/home/naruto");
+	//捕捉函數註冊前先屏蔽SIGALRM信號
+	sigset_t sig ;
+	sigemptyset(&sig);
+	sigaddset(&sig,SIGALRM);
+	sigprocmask(SIG_BLOCK,&sig,NULL);
+	//發射SIGALRM信號
+	struct itimerval myit = {{30,0},{10,0}};
+	setitimer(ITIMER_REAL,&myit,NULL);
+	//註冊捕獲函數
+	struct sigaction act;
+	act.sa_flags = 0;
+	act.sa_handler = touchlog;
+	sigemptyset(&act.sa_mask);
+	sigaction(SIGALRM,&act,NULL);
+	sigprocmask(SIG_UNBLOCK,&sig,NULL);
+	while(1){sleep(1);}
+	return 0;
+}
