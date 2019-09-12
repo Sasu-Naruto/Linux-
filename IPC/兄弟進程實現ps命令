@@ -1,0 +1,37 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+#include<fcntl.h>
+#include<unistd.h>
+int main()
+{
+	int fd[2];//定義文件描述符
+	pipe(fd);
+	pid_t pid = fork();
+	if(pid == 0)
+	{
+		close(fd[0]); //關閉讀端口
+		dup2(fd[1],STDOUT_FILENO);
+		execlp("ps","ps","-aux",NULL);	
+	}
+	else if(pid > 0)
+	{
+		pid_t pid_1 = fork();
+		if(pid_1 == 0)
+		{
+			close(fd[1]);
+			dup2(fd[0],STDIN_FILENO);
+			sleep(1);
+			execlp("grep","grep","bash",NULL);
+		}
+		else if(pid_1 > 0)
+		{
+			close(fd[0]);
+			close(fd[1]);
+			wait(NULL);
+		}
+		wait(NULL);
+	}
+	return 0;
+}
