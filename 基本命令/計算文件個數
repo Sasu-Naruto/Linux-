@@ -1,0 +1,53 @@
+#include<stdio.h>
+#include<string.h>
+#include<sys/stat.h>
+#include<sys/types.h>
+#include<fcntl.h>
+#include<unistd.h>
+#include<dirent.h>
+int count = 0;
+int DirCount(char* dirname)
+{
+	//打开目录
+	DIR* dirp = opendir(dirname);
+	if(dirp == NULL)
+	{
+		perror("dirname err");
+		return -1;
+	}
+	struct dirent* dentp = NULL; //定义读取目录后的目录项指针
+	while((dentp = readdir(dirp))!=NULL)  //读取目录还未结束
+	{
+		if(dentp->d_type==DT_DIR)//读取到子目录
+		{
+			//如果读取目录为.or..则继续读取下一个目录
+			if(strcmp(".",dentp->d_name)==0||strcmp("..",dentp->d_name)==0)
+			{
+				continue;
+			}
+			//注意每一个进程的目录，要更新为子目录
+			char newdirname[256]={0};
+			sprintf(newdirname,"%s/%s",dirname,dentp->d_name);
+			DirCount(newdirname);
+		}
+		if(dentp->d_type==DT_REG)//读取文件
+		{
+			count++;
+		}
+	}
+	closedir(dirp);
+	return 0;
+}
+int main(int argc,char* argv[])
+{
+	if(argc != 2)
+	{
+		printf("./a.out filename\n");
+		return -1;
+	}
+	DirCount(argv[1]);
+	printf("该目录下存在的文件数目为:%d",count);
+	return 0;	
+}	
+
+
