@@ -1,0 +1,89 @@
+#include<stdio.h>
+#include<sys/wait.h>
+#include<sys/stat.h>
+#include<sys/time.h>
+#include<sys/types.h>
+#include<signal.h>
+#include<stdlib.h>
+#include<time.h>
+#include<string.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<pthread.h>
+#include<sys/mman.h>
+
+typedef struct Info
+{
+	char fromfile[256]; //源文件名稱
+	char tofile[256];   //拷貝文件名稱
+	int num ;           //第幾個線程
+	int legth;          //每次拷貝長度
+	int filesize;       //文件大小
+	int offset;         //每次拷貝的偏移量
+}Info;
+void *doThread(void *arg)
+{
+	Info *info = (Info*)arg;
+	int fd_rd = open(info->fromfile,O_RDONLY);//打開源文件
+	int fd_wr = open(info->tofile,O_RDWR);//打開拷貝文件
+	ftruncate(fd_wr,info->filesize);
+	char *ptr_RD = mmap(NULL,info->filesize,PROT_READ,MAP_PRIVATE,fd_rd,0);
+	if(ptr_RD == MAP_FAILED)
+	{
+		perror("mmap error!\n");
+	}
+	char *ptr_WR = mmap(NULL,info->filesize,PROT_READ|PROT_WRITE,MAP_SHARED,fd_wr,0);
+	if(ptr_RD == MAP_FAILED)
+	{
+		perror("mmap error!\n");
+	}
+	memcpy(ptr_WR+info->offset,ptr_RD+info->offset,info->legth);
+	printf("thread %d copy over\n",info->num);
+	//釋放映射區
+	munmap(ptr_RD,info->filesize);
+	munmap(ptr_WR,info->filesize);
+	return NULL;
+}
+int main(int argc,char* argv[])
+{
+	if(argc!=2)
+	{
+		printf("./a.out filename\n");
+		return -1;
+	}
+	pthread_t *tid;
+	Info *info;
+	info = (Info*)malloc(5*sizeof(Info));
+	tid = (pthread_t*)malloc(5*sizeof(pthread_t));
+	int fd_R0 = open(argv[1],O_RDONLY);
+	int fd_W0 = open("copyfile",O_RDWR|O_CREAT|O_TRUNC,0666);
+	int Filesize = lseek(fd_R0,0,SEEK_END);
+	printf("filesize is %d\n",Filesize);
+	ftruncate(fd_W0,Filesize);
+	int Offset = Filesize/5;
+	//初始化結構體
+	int i = 0;
+	for(i;i<4;i++)
+	{
+		info[i].num = i;
+		info[i].offset = i*Offset;
+		info[i].legth = Offset;
+		strcpy(info[i].fromfile,argv[1]);
+		strcpy(info[i].tofile,"copyfile");
+		info[i].filesize = Filesize;
+	}
+	info[i].num = i;
+	info[i].offset = i*Offset;
+	info[i].legth = Filesize-i*Offset;
+	strcpy(info[i].fromfile,argv[1]);
+	strcpy(info[i].tofile,"copyfile");
+	info[i].filesize = Filesize;
+	//創建多線程
+	for(i = 0;i<5;i++)
+		pthread_create(&tid[i],NULL,doThread,&info[i]);
+	//回收線程
+	for(i = 0;i<5;i++)
+		pthread_join(tid[i],NULL);
+	return 0;
+
+}
