@@ -1,0 +1,25 @@
+#include<stdio.h>
+#include<sys/types.h>
+#include<unistd.h>
+#include<sys/wait.h>
+int main()
+{
+	int fd[2];
+	int status = pipe(fd); //在fork之前创建通信管道，父子进程才可共享数据
+	pid_t pid = fork();
+	if(pid == 0)
+	{
+		//	sleep(3);
+		write(fd[1],"helloworld",10);
+	}
+	else if(pid > 0)
+	{
+		//int offt = lseek(fd[1],0,SEEK_SET);
+		char buf[32] = {0};
+		int ret = read(fd[0],buf,sizeof(buf));
+		write(STDOUT_FILENO,buf,ret);
+	//	printf("%s\n",buf);
+		wait(NULL);
+	}
+	return 0;
+}
